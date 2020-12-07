@@ -15,6 +15,9 @@ A practical implement of CPU rasterization pipepline.
 OpenGL Projection Matrix
 * http://www.songho.ca/opengl/gl_projectionmatrix.html
 
+About the Projection Matrix, the GPU Rendering Pipeline and Clipping
+* https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/projection-matrix-GPU-rendering-pipeline-clipping
+
 Rasterization: a Practical Implementation
 * https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/overview-rasterization-algorithm
 

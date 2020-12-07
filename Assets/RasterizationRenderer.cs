@@ -13,7 +13,7 @@ public class Model {
         return meshFilter.gameObject.activeInHierarchy;
     }
 
-    public VertexBuffer CreateVertexBuffer (Matrix4x4 view, Matrix4x4 proj) {
+    public VertexBuffer CreateVertexBuffer (Matrix4x4 viewProj) {
         var mesh = meshFilter.sharedMesh;
         var vertices = mesh.vertices;
         var triangles = mesh.triangles;
@@ -26,7 +26,7 @@ public class Model {
         }
 
         var m = meshFilter.transform.localToWorldMatrix;
-        vertexBuffer.mvp = proj * view * m;
+        vertexBuffer.mvp = viewProj * m;
         return vertexBuffer;
     }
 }
@@ -74,6 +74,7 @@ public class RasterizationRenderer : MonoBehaviour {
         Draw ();
         time = Time.realtimeSinceStartup - time;
         Debug.LogFormat ("Time spent: {0:0.000} s", time);
+
     }
 
     void Draw () {
@@ -93,6 +94,7 @@ public class RasterizationRenderer : MonoBehaviour {
 
         var view = camera.worldToCameraMatrix;
         var proj = camera.projectionMatrix;
+        var viewProj = Rasterizer.GetViewProjectionMatrix (camera);
 
         Color[] colorBuffer = result.GetPixels ();
         float[] depthBuffer = new float[colorBuffer.Length];
@@ -103,7 +105,7 @@ public class RasterizationRenderer : MonoBehaviour {
                 continue;
             }
 
-            var vertexBuffer = model.CreateVertexBuffer (view, proj);
+            var vertexBuffer = model.CreateVertexBuffer (viewProj);
             GeometryProcessing (vertexBuffer);
 
             var pixelBuffer = new PixelBuffer ();
@@ -161,14 +163,14 @@ public class RasterizationRenderer : MonoBehaviour {
                         w1 /= area;
                         w2 /= area;
 
-                        var z0 = 1f / vertexBuffer.positions[i].w;
-                        var z1 = 1f / vertexBuffer.positions[i + 1].w;
-                        var z2 = 1f / vertexBuffer.positions[i + 2].w;
+                        var invZ0 = 1f / (vertexBuffer.positions[i].z / vertexBuffer.positions[i].w);
+                        var invZ1 = 1f / (vertexBuffer.positions[i + 1].z / vertexBuffer.positions[i + 1].w);
+                        var invZ2 = 1f / (vertexBuffer.positions[i + 2].z / vertexBuffer.positions[i + 2].w);
 
                         var position = new Vector3 ();
                         position.x = v0.x * w0 + v1.x * w1 + v2.x * w2;
                         position.y = v0.y * w0 + v1.y * w1 + v2.y * w2;
-                        position.z = z0 * w0 + z1 * w1 + z2 * w2;
+                        position.z = 1f / (invZ0 * w0 + invZ1 * w1 + invZ2 * w2);
 
                         var index = y * resolution.x + x;
                         pixelBuffer.indexes.Add (index);
