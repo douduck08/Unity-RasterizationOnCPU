@@ -27,10 +27,11 @@ public class RasterizationRenderer : MonoBehaviour {
 
         var rasterizer = new Rasterizer (resolution.x, resolution.y);
         rasterizer.Draw (camera, models, reversedZ);
+
+        Debug.LogFormat ("Time spent: {0:0.000} s", Time.realtimeSinceStartup - time);
+
         colorBuffer = rasterizer.ExportColorBuffer ();
         depthBuffer = rasterizer.ExportDepthBuffer ();
-
-        Debug.LogFormat ("Time spent: {0:0.000} s", time);
     }
 
     void OnGUI () {

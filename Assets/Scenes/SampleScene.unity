@@ -484,7 +484,7 @@ MonoBehaviour:
     color: {r: 0.57188356, g: 0, b: 0.6037736, a: 1}
   - meshFilter: {fileID: 751955196}
     color: {r: 0.9622642, g: 0.273531, b: 0.05900679, a: 1}
-  resolution: {x: 960, y: 560}
+  resolution: {x: 1920, y: 1080}
   camera: {fileID: 534669904}
   reversedZ: 1
   displayColor: 1
@@ -497,10 +497,10 @@ MonoBehaviour:
   displayDepth: 0
   depthView:
     serializedVersion: 2
-    x: 960
+    x: 0
     y: 0
-    width: 960
-    height: 560
+    width: 1920
+    height: 1080
 --- !u!1 &628378001
 GameObject:
   m_ObjectHideFlags: 0
