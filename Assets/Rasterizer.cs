@@ -15,7 +15,7 @@ public class VaryingData {
 
 public class FragmentData {
     public List<int> index = new List<int> (); // index of color buffer and depth buffer
-    public List<Vector3> sv_position = new List<Vector3> (); // positions in clip space and NDC
+    public List<float> sv_depth = new List<float> (); // positions in clip space and NDC
 }
 
 public class Rasterizer {
@@ -46,7 +46,7 @@ public class Rasterizer {
             var mvp = vpMatrix * model.meshFilter.transform.localToWorldMatrix;
             var varyings = GeometryProcessing (mesh.vertices, mvp);
             var fragmentData = ClippingAndRasterization (varyings, mesh.GetIndices (0));
-            PixelProcessingAndMerge (fragmentData, model.color);
+            PixelProcessingAndMerge (fragmentData, model.color, reversedZ);
         }
     }
 
@@ -90,16 +90,15 @@ public class Rasterizer {
             var index0 = indexes[i];
             var index1 = indexes[i + 1];
             var index2 = indexes[i + 2];
-            var v0 = new Vector3 (varyingData.sv_position[index0].x, varyingData.sv_position[index0].y, varyingData.sv_position[index0].z) / varyingData.sv_position[index0].w;
-            var v1 = new Vector3 (varyingData.sv_position[index1].x, varyingData.sv_position[index1].y, varyingData.sv_position[index1].z) / varyingData.sv_position[index1].w;
-            var v2 = new Vector3 (varyingData.sv_position[index2].x, varyingData.sv_position[index2].y, varyingData.sv_position[index2].z) / varyingData.sv_position[index2].w;
+            var v0 = new Vector4 (varyingData.sv_position[index0].x, varyingData.sv_position[index0].y, varyingData.sv_position[index0].z, 1f) / varyingData.sv_position[index0].w;
+            var v1 = new Vector4 (varyingData.sv_position[index1].x, varyingData.sv_position[index1].y, varyingData.sv_position[index1].z, 1f) / varyingData.sv_position[index1].w;
+            var v2 = new Vector4 (varyingData.sv_position[index2].x, varyingData.sv_position[index2].y, varyingData.sv_position[index2].z, 1f) / varyingData.sv_position[index2].w;
+            var area = EdgeFunction (v0, v1, v2);
 
             var xMin = Mathf.Max (Mathf.FloorToInt ((Mathf.Min (v0.x, v1.x, v2.x) * 0.5f + 0.5f) / pixelSize.x), 0);
             var xMax = Mathf.Min (Mathf.CeilToInt ((Mathf.Max (v0.x, v1.x, v2.x) * 0.5f + 0.5f) / pixelSize.x) + 1, width);
             var yMin = Mathf.Max (Mathf.FloorToInt ((Mathf.Min (v0.y, v1.y, v2.y) * 0.5f + 0.5f) / pixelSize.y), 0);
             var yMax = Mathf.Min (Mathf.CeilToInt ((Mathf.Max (v0.y, v1.y, v2.y) * 0.5f + 0.5f) / pixelSize.y) + 1, height);
-
-            var area = EdgeFunction (v0, v1, v2);
             for (int x = xMin; x < xMax; x++) {
                 for (int y = yMin; y < yMax; y++) {
                     var p = new Vector2 (x * pixelSize.x, y * pixelSize.y) + pixelSize * 0.5f;
@@ -108,37 +107,48 @@ public class Rasterizer {
                     var w0 = EdgeFunction (v1, v2, p);
                     var w1 = EdgeFunction (v2, v0, p);
                     var w2 = EdgeFunction (v0, v1, p);
-                    if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
-                        // triangle contains the point
-                        w0 /= area;
-                        w1 /= area;
-                        w2 /= area;
-
-                        var invZ0 = 1f / v0.z;
-                        var invZ1 = 1f / v1.z;
-                        var invZ2 = 1f / v2.z;
-
-                        var position = new Vector3 ();
-                        position.x = v0.x * w0 + v1.x * w1 + v2.x * w2;
-                        position.y = v0.y * w0 + v1.y * w1 + v2.y * w2;
-                        position.z = 1f / (invZ0 * w0 + invZ1 * w1 + invZ2 * w2);
-
-                        var index = y * width + x;
-                        result.index.Add (index);
-                        result.sv_position.Add (position);
+                    if (w0 < 0 || w1 < 0 || w2 < 0) {
+                        // triangle not contains the point
+                        continue;
                     }
+
+                    w0 /= area;
+                    w1 /= area;
+                    w2 /= area;
+                    var interpolated_z = v0.z * w0 + v1.z * w1 + v2.z * w2;
+                    var interpolated_w = v0.w * w0 + v1.w * w1 + v2.w * w2;
+
+                    if (interpolated_z < 0f || interpolated_z > 1f) {
+                        // clip fragments outside the near/far planes
+                        continue;
+                    }
+
+                    // perspective correct interpolation
+                    // w0 = w0 * v0.w / interpolated_w;
+                    // w1 = w1 * v1.w / interpolated_w;
+                    // w2 = w2 * v2.w / interpolated_w;
+                    // var varying = varying0 * w0 + varying1 * w1 + varying2 * w2; 
+
+                    var depth = interpolated_z;
+                    var index = y * width + x;
+                    result.index.Add (index);
+                    result.sv_depth.Add (depth);
+
                 }
             }
         }
         return result;
     }
 
-    void PixelProcessingAndMerge (FragmentData fragmentData, Color materialColor) {
+    void PixelProcessingAndMerge (FragmentData fragmentData, Color materialColor, bool reversedZ = true) {
         var size = fragmentData.index.Count;
         for (int i = 0; i < size; i++) {
             var index = fragmentData.index[i];
-            var currentZ = fragmentData.sv_position[i].z;
-            if (currentZ > depthBuffer[index]) {
+            var currentZ = fragmentData.sv_depth[i];
+            if (reversedZ && currentZ > depthBuffer[index]) {
+                colorBuffer[index] = materialColor;
+                depthBuffer[index] = currentZ;
+            } else if (!reversedZ && currentZ < depthBuffer[index]) {
                 colorBuffer[index] = materialColor;
                 depthBuffer[index] = currentZ;
             }

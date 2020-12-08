@@ -38,3 +38,6 @@ Rasterization: a Practical Implementation
 Q: What does hardware work about the conversion from clip space to NDC.
 * https://forum.unity.com/threads/what-coordinate-space-dose-fragment-shaders-input-in.521960/
 * https://answers.unity.com/questions/1443941/shaders-what-is-clip-space.html
+
+Q: How exactly does OpenGL do perspectively correct linear interpolation?
+* https://stackoverflow.com/questions/24441631/how-exactly-does-opengl-do-perspectively-correct-linear-interpolation

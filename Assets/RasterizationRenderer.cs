@@ -11,6 +11,7 @@ public class RasterizationRenderer : MonoBehaviour {
     [Header ("Config")]
     public Vector2Int resolution = new Vector2Int (512, 512);
     public new Camera camera;
+    public bool reversedZ = true;
 
     [Header ("Display")]
     public bool displayColor;
@@ -25,7 +26,7 @@ public class RasterizationRenderer : MonoBehaviour {
         var time = Time.realtimeSinceStartup;
 
         var rasterizer = new Rasterizer (resolution.x, resolution.y);
-        rasterizer.Draw (camera, models, true);
+        rasterizer.Draw (camera, models, reversedZ);
         colorBuffer = rasterizer.ExportColorBuffer ();
         depthBuffer = rasterizer.ExportDepthBuffer ();
 
